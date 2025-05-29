@@ -12,13 +12,18 @@ def run(
     sovereign_contract_setup_addresses,
     deployment_stages,
 ):
-    if (
+    # Deploy aggkit-prover if either:
+    # 1. The new deploy_aggkit_prover flag is set, OR
+    # 2. The legacy deploy_op_succinct flag is set with non-pessimistic consensus (backward compatibility)
+    should_deploy_aggkit_prover = deployment_stages.get("deploy_aggkit_prover", False) or (
         deployment_stages.get("deploy_op_succinct", False)
         and args["consensus_contract_type"] != "pessimistic"
-    ):
+    )
+    
+    if should_deploy_aggkit_prover:
         # Create aggkit-prover
         aggkit_prover_config_artifact = create_aggkit_prover_config_artifact(
-            plan, args, contract_setup_addresses, sovereign_contract_setup_addresses
+            plan, args, contract_setup_addresses, sovereign_contract_setup_addresses, deployment_stages
         )
         (ports, public_ports) = get_aggkit_prover_ports(args)
 
@@ -187,11 +192,28 @@ def create_bridge_config_artifact(
 
 
 def create_aggkit_prover_config_artifact(
-    plan, args, contract_setup_addresses, sovereign_contract_setup_addresses
+    plan, args, contract_setup_addresses, sovereign_contract_setup_addresses, deployment_stages
 ):
     aggkit_prover_config_template = read_file(
         src="./templates/bridge-infra/aggkit-prover-config.toml"
     )
+
+    # Determine L2 RPC URLs based on the sequencer type
+    if args.get("sequencer_type") == "erigon":
+        l2_el_rpc_url = "http://cdk-erigon-rpc" + args["deployment_suffix"] + ":8123"
+        l2_cl_rpc_url = ""  # CDK-Erigon doesn't need a CL node
+    else:
+        l2_el_rpc_url = args["op_el_rpc_url"]
+        l2_cl_rpc_url = args["op_cl_rpc_url"]
+
+    # Determine proposer URL based on deployment type
+    if deployment_stages.get("deploy_op_succinct", False):
+        proposer_url = "http://op-succinct-proposer{}:{}".format(
+            args["deployment_suffix"],
+            args["op_succinct_proposer_grpc_port"],
+        )
+    else:
+        proposer_url = ""  # No proposer needed for non-OP deployments
 
     return plan.render_templates(
         name="aggkit-prover-artifact",
@@ -212,23 +234,17 @@ def create_aggkit_prover_config_artifact(
                         "aggkit", args["l1_rpc_url"]
                     ),
                     # L2
-                    "l2_el_rpc_url": args["op_el_rpc_url"],
-                    "l2_cl_rpc_url": args["op_cl_rpc_url"],
+                    "l2_el_rpc_url": l2_el_rpc_url,
+                    "l2_cl_rpc_url": l2_cl_rpc_url,
                     "rollup_manager_address": contract_setup_addresses[
                         "zkevm_rollup_manager_address"
                     ],  # TODO: Check if it's the right address - is it the L1 rollup manager address ?
-                    "global_exit_root_address": sovereign_contract_setup_addresses[
-                        "sovereign_ger_proxy_addr"
-                    ],  # TODO: Check if it's the right address - is it the L2 sovereign global exit root address ?
-                    # TODO: For op-succinct, agglayer/op-succinct is currently on the golang version. This might change if we move to the rust version.
-                    "proposer_url": "http://op-succinct-proposer{}:{}".format(
-                        args["deployment_suffix"],
-                        args["op_succinct_proposer_grpc_port"],
-                    ),
-                    # TODO: For legacy op, this would be different - something like http://op-proposer-001:8560
-                    # "proposer_url": "http://op-proposer{}:{}".format(
-                    #     args["deployment_suffix"], args["op_proposer_port"]
-                    # ),
+                    "global_exit_root_address": sovereign_contract_setup_addresses.get(
+                        "sovereign_ger_proxy_addr",
+                        contract_setup_addresses.get("zkevm_global_exit_root_address")
+                    ),  # Use L2 GER if available, otherwise use L1 GER
+                    # Proposer URL configuration
+                    "proposer_url": proposer_url,
                     "network_id": args["zkevm_rollup_id"],
                     "agglayer_prover_network_url": args["agglayer_prover_network_url"],
                     "op_succinct_mock": args["op_succinct_mock"],

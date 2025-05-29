@@ -259,7 +259,7 @@ def run(plan, args={}):
         plan.print("Skipping the deployment of OP Succinct")
 
     # Deploy AggKit infrastructure + Dedicated Bridge Service
-    if deployment_stages.get("deploy_optimism_rollup", False):
+    if deployment_stages.get("deploy_optimism_rollup", False) or deployment_stages.get("deploy_aggkit_prover", False):
         plan.print("Deploying AggKit infrastructure")
         import_module(aggkit_package).run(
             plan,
