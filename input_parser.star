@@ -5,23 +5,33 @@ dict = import_module("./src/package_io/dict.star")
 # You can deploy the whole stack and then only deploy a subset of the components to perform an
 # an upgrade or to test a new version of a component.
 DEFAULT_DEPLOYMENT_STAGES = {
-    # Deploy a local L1 chain using the ethereum-package.
-    # Set to false to use an external L1 like Sepolia.
-    # Note that it will require a few additional parameters.
+    # Deploy local L1.
+    # Set to false to deploy to an external L1.
     "deploy_l1": True,
-    # Deploy zkevm contracts on L1 (as well as fund accounts).
-    # Set to false to use pre-deployed zkevm contracts.
-    # Note that it will require a few additional parameters.
+    # Deploy zkevm contracts on L1 (and also fund accounts).
     "deploy_zkevm_contracts_on_l1": True,
-    # Deploy databases.
+    # Deploy the second and subsequent rollups on L1 (and also fund accounts).
+    # If this is set to false then only the first rollup will be deployed.
+    "deploy_additional_rollup": False,
+    # Deploy helper service to retrieve rollup data.
+    "deploy_rollup_data_helper": True,
+    # Deploy databases (postgres, maybe consul/zookeeper).
     "deploy_databases": True,
-    # Deploy CDK central/trusted environment.
+    # Deploy cdk central/trusted environment (cdk-node, cdk-dac, zkevm-sequence-sender).
     "deploy_cdk_central_environment": True,
-    # Deploy CDK bridge infrastructure.
+    # Deploy cdk/bridge infrastructure (cdk-contracts, bridge-service, bridge-ui).
     "deploy_cdk_bridge_infra": True,
-    # Deploy CDK bridge UI.
+    # Deploy centralized sequencer on L2.
+    "deploy_centralized_sequencer": True,
+    # Deploy permissionless node on L2.
+    "deploy_cdk_permissionless_node": False,
+    # Deploy Marplex environment.
+    "deploy_marplex": False,
+    # Deploy CDK node (cdk-node).
+    # deploy_cdk_node: true
+    # Deploy bridge UI.
     "deploy_cdk_bridge_ui": False,
-    # Deploy the agglayer.
+    # Deploy agglayer.
     "deploy_agglayer": True,
     # Deploy cdk-erigon node.
     # TODO: Remove this parameter to incorporate cdk-erigon inside the central environment.
@@ -34,6 +44,9 @@ DEFAULT_DEPLOYMENT_STAGES = {
     # After deploying OP Stack, upgrade it to OP Succinct.
     # Even mock-verifier deployments require an actual SPN network key.
     "deploy_op_succinct": False,
+    # Deploy AggKit Prover independently of OP Stack
+    # This allows aggkit-prover to be deployed with any consensus type
+    "deploy_aggkit_prover": False,
     # Deploy contracts on L2 (as well as fund accounts).
     "deploy_l2_contracts": False,
 }
